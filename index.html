@@ -3,401 +3,353 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
-    <title>Clash Royale JS - Portal tamcpoco</title>
+    <title>MashRoyale - Pro</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Open+Sans:wght@600;800&display=swap');
         
         :root {
-            --gold: #f1c40f;
-            --blue: #3498db;
-            --purple: #e056fd;
-            --dark: #121212;
+            --gold: #fbc531; --purple: #9c88ff; --blue: #0097e6;
+            --dark: #2f3640; --danger: #e84118; --bg: #1e272e;
         }
 
-        body { 
-            margin: 0; 
-            background: #000; 
-            font-family: 'Bangers', cursive; 
-            color: white; 
-            overflow: hidden; 
-            display: flex;
-            justify-content: center;
-        }
+        body { margin: 0; background: #000; font-family: 'Open Sans', sans-serif; color: white; overflow: hidden; display: flex; justify-content: center; }
+        #app-container { width: 100%; max-width: 480px; height: 100vh; position: relative; background: var(--bg); border: 2px solid #333; }
 
-        #app-container {
-            width: 100%;
-            max-width: 480px;
-            height: 100vh;
-            position: relative;
-            background: #2c3e50;
-            overflow: hidden;
-            border-left: 2px solid #333;
-            border-right: 2px solid #333;
-        }
+        /* NAVEGACIÓN */
+        .page { display: none; width: 100%; height: calc(100% - 80px); position: absolute; top: 0; overflow-y: auto; padding: 20px; box-sizing: border-box; z-index: 10; }
+        .active-page { display: block; }
 
-        /* Pantallas */
-        .page {
-            display: none;
-            width: 100%;
-            height: calc(100% - 70px);
-            position: absolute;
-            top: 0;
-            overflow-y: auto;
+        /* INICIO */
+        #home-page { text-align: center; }
+        .arena-card { background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)); border-radius: 15px; padding: 20px; margin: 15px 0; border: 2px solid var(--gold); }
+        .chest-slots { display: flex; justify-content: space-around; gap: 8px; margin: 20px 0; }
+        .chest-slot { 
+            flex: 1; height: 100px; background: rgba(0,0,0,0.5); border: 2px dashed #666; border-radius: 12px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 11px;
         }
-        .active { display: block; }
+        .chest-slot.filled { border: 2.5px solid var(--blue); background: #2f3640; box-shadow: 0 4px 10px rgba(0,0,0,0.5); animation: shake 3s infinite; }
+        @keyframes shake { 0%, 90% { transform: rotate(0); } 92% { transform: rotate(5deg); } 95% { transform: rotate(-5deg); } 100% { transform: rotate(0); } }
 
-        /* Pantalla Inicio */
-        #home-page {
-            background: linear-gradient(to bottom, #1e3799, #0c2461);
-            text-align: center;
-            padding-top: 60px;
-        }
+        .btn-battle { background: #e67e22; border: none; border-bottom: 6px solid #d35400; color: white; font-family: 'Bangers'; font-size: 42px; padding: 12px; border-radius: 15px; width: 100%; cursor: pointer; margin-top: 10px; }
+        .btn-battle:active { transform: translateY(3px); border-bottom-width: 2px; }
 
-        .battle-btn {
-            background: #e67e22;
-            border: 4px solid #d35400;
-            color: white;
-            font-family: 'Bangers';
-            font-size: 45px;
-            padding: 20px 70px;
-            border-radius: 20px;
-            cursor: pointer;
-            box-shadow: 0 8px 0 #a04000;
-            margin-top: 80px;
-            transition: 0.1s;
-        }
-        .battle-btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #a04000; }
+        /* MAZO */
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-bottom: 20px; }
+        .card { background: #353b48; border-radius: 10px; padding: 10px; text-align: center; position: relative; border: 3px solid transparent; cursor: pointer; transition: 0.1s; }
+        .card.locked { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
+        .card.selected { border-color: var(--gold); background: #4b6584; }
+        .card-cost { position: absolute; top: -5px; left: -5px; background: var(--purple); width: 24px; height: 24px; border-radius: 50%; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; z-index: 5; border: 2px solid white; }
+        .lock-icon { font-size: 20px; position: absolute; top: 35%; left: 40%; color: white; }
 
-        /* Pantalla Mazo */
-        #deck-page { background: #34495e; padding: 20px; box-sizing: border-box; }
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-top: 20px;
-        }
-        .inventory-card {
-            background: #2c3e50;
-            border: 3px solid #7f8c8d;
-            border-radius: 12px;
-            padding: 15px;
-            text-align: center;
-            position: relative;
-        }
-        .card-lvl { position: absolute; top: 5px; right: 10px; color: var(--gold); }
+        /* NAVBAR */
+        #nav { position: absolute; bottom: 0; width: 100%; height: 80px; background: #2f3640; display: flex; z-index: 100; border-top: 3px solid #111; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #718093; font-weight: 800; transition: 0.3s; }
+        .nav-item.active-nav { color: var(--gold); background: rgba(255,255,255,0.05); }
 
-        /* Navegación Inferior */
-        #nav-bar {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            height: 70px;
-            background: #111;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            border-top: 4px solid #444;
-            z-index: 100;
-        }
-        .nav-item { cursor: pointer; font-size: 18px; color: #7f8c8d; transition: 0.3s; text-align: center; }
-        .nav-item.active-nav { color: var(--gold); transform: scale(1.1); }
-
-        /* Canvas de Batalla */
-        canvas { display: none; background: #000; }
-        
-        .timer-ui {
-            position: absolute; top: 10px; width: 100%; text-align: center;
-            pointer-events: none; z-index: 50; display: none;
-        }
-        .timer-box { background: rgba(0,0,0,0.8); padding: 5px 20px; border-radius: 10px; border: 2px solid var(--gold); font-size: 24px; }
+        /* BATALLA */
+        #canvas { display: none; background: #2ecc71; touch-action: none; z-index: 5; }
+        .battle-msg { position: absolute; top: 40%; width: 100%; text-align: center; font-family: 'Bangers'; font-size: 70px; color: var(--gold); text-shadow: 4px 4px #000; display: none; z-index: 1000; pointer-events: none; }
     </style>
 </head>
 <body>
 
 <div id="app-container">
-    <div id="battle-ui" class="timer-ui">
-        <div class="timer-box" id="timer-txt">3:00</div>
-        <div id="arena-name-txt" style="font-size: 14px; margin-top: 5px;"></div>
-    </div>
-
-    <div id="home-page" class="page active">
-        <h1 style="font-size: 50px; text-shadow: 4px 4px #000; margin-bottom: 5px;">TAMCPOCO</h1>
-        <p style="letter-spacing: 2px;">PORTAL DE BATALLA</p>
-        
-        <div style="margin-top: 40px; background: rgba(0,0,0,0.4); padding: 20px;">
-            <div id="stats-wins" style="font-size: 24px;">VICTORIAS: 0</div>
-            <div id="stats-arena" style="font-size: 20px; color: var(--gold);">ARENA 1</div>
-        </div>
-
-        <button class="battle-btn" onclick="startBattle()">¡BATALLA!</button>
-    </div>
+    <div id="battle-msg" class="battle-msg">VICTORIA</div>
 
     <div id="deck-page" class="page">
-        <h2 style="text-align: center; font-size: 32px; border-bottom: 2px solid var(--gold);">COLECCIÓN</h2>
-        <div class="card-grid" id="deck-display"></div>
+        <h2 style="text-align:center; font-family:'Bangers'; font-size:35px">MI MAZO (<span id="count">0</span>/4)</h2>
+        <div class="card-grid" id="inventory"></div>
+    </div>
+
+    <div id="home-page" class="page active-page">
+        <h1 style="font-size: 50px; color: var(--gold); text-shadow: 4px 4px #000; margin: 10px 0; font-family:'Bangers'">MASHROYALE</h1>
+        
+        <div class="arena-card">
+            <h2 id="arena-name" style="margin:0; font-family:'Bangers'; color:var(--blue)">ESTADIO DUENDE</h2>
+            <div style="font-size: 20px; font-weight: 800; margin-top:5px">🏆 <span id="trophies-display">0</span></div>
+        </div>
+
+        <div class="chest-slots" id="chest-slots"></div>
+
+        <button class="btn-battle" id="btn-battle" onclick="startBattle()">¡BATALLA!</button>
+        <p id="deck-status" style="color: var(--danger); font-size: 13px; font-weight: 800; margin-top: 10px;">SELECCIONA 4 CARTAS</p>
+    </div>
+
+    <div id="pass-page" class="page">
+        <h2 style="text-align:center; font-family:'Bangers'; font-size:35px">PASE REAL</h2>
+        <div class="arena-card" style="text-align:left">
+            <p>Nivel 1: ✅ 100 Oro</p>
+            <p>Nivel 2: 🔒 Cofre Gigante (400 Copas)</p>
+            <p>Nivel 3: 🔒 Reacción Exclusiva (800 Copas)</p>
+        </div>
     </div>
 
     <canvas id="canvas" width="480" height="800"></canvas>
 
-    <div id="nav-bar">
-        <div class="nav-item" onclick="showPage('deck', this)">🃏<br>MAZO</div>
-        <div class="nav-item active-nav" onclick="showPage('home', this)">⚔️<br>INICIO</div>
-        <div class="nav-item" onclick="alert('Portal tamcpoco: Social próximamente')">👥<br>AMIGOS</div>
+    <div id="nav">
+        <div class="nav-item" onclick="showTab('deck', this)"><span>🃏</span>MAZO</div>
+        <div class="nav-item active-nav" onclick="showTab('home', this)"><span>⚔️</span>INICIO</div>
+        <div class="nav-item" onclick="showTab('pass', this)"><span>🏆</span>PASE</div>
     </div>
 </div>
 
 <script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const W = 480, H = 800;
-
-    // --- ESTADO GLOBAL ---
-    let currentArena = 1;
-    let wins = 0;
-    let cardLevel = 1.0;
-    let inBattle = false;
-
-    const ARENA_THEMES = {
-        1: { name: "ESTADIO DUENDE", ground: "#27ae60", river: "#2980b9", bridge: "#7e5109", path: "#2ecc71", enemyMult: 1.0 },
-        2: { name: "FOSO DE HUESOS", ground: "#535c68", river: "#130f40", bridge: "#30336b", path: "#95afc0", enemyMult: 1.3 },
-        3: { name: "COLISEO BÁRBARO", ground: "#d35400", river: "#8e44ad", bridge: "#2c3e50", path: "#e67e22", enemyMult: 1.6 },
-        4: { name: "ARENA LEGENDARIA", ground: "#130f40", river: "#00d2ff", bridge: "#f1c40f", path: "#192a56", enemyMult: 2.2 }
-    };
-
+    // --- 20 CARTAS TOTALES ---
     const CARDS = [
-        { name: "GIGANTE", cost: 5, hp: 3200, dmg: 160, speed: 0.8, range: 45, atkSpeed: 1500, target: "building", emoji: "🧔" },
-        { name: "MOSQUETERA", cost: 4, hp: 600, dmg: 180, speed: 1.3, range: 200, atkSpeed: 1100, target: "any", emoji: "👩‍🚀" },
-        { name: "MINI PEKKA", cost: 4, hp: 1100, dmg: 550, speed: 1.7, range: 50, atkSpeed: 1800, target: "any", emoji: "🤖" },
-        { name: "PRÍNCIPE", cost: 5, hp: 1500, dmg: 400, speed: 2.3, range: 55, atkSpeed: 1400, target: "any", emoji: "🏇" },
-        { name: "ESQUELETO", cost: 1, hp: 120, dmg: 60, speed: 2.1, range: 40, atkSpeed: 800, target: "any", emoji: "💀" },
-        { name: "MONTAPUERCOS", cost: 4, hp: 1400, dmg: 260, speed: 2.5, range: 45, atkSpeed: 1600, target: "building", emoji: "🐗" }
+        { id: 0, name: "CABALLERO", emoji: "⚔️", cost: 3, hp: 1450, dmg: 160, speed: 1.2, range: 45, arena: 1 },
+        { id: 1, name: "ARCHERAS", emoji: "🏹", cost: 3, hp: 600, dmg: 95, speed: 1.1, range: 210, arena: 1 },
+        { id: 2, name: "GIGANTE", emoji: "🧔", cost: 5, hp: 3600, dmg: 210, speed: 0.8, range: 50, target: "tower", arena: 1 },
+        { id: 3, name: "BOMBARDERO", emoji: "💣", cost: 2, hp: 500, dmg: 200, speed: 1.0, range: 180, arena: 1 },
+        { id: 4, name: "FLECHAS", emoji: "🏹", cost: 3, hp: 1, dmg: 300, isSpell: true, arena: 1 },
+        { id: 5, name: "MINI PEKKA", emoji: "🤖", cost: 4, hp: 1200, dmg: 680, speed: 1.6, range: 45, arena: 2 },
+        { id: 6, name: "MONTAPUERCOS", emoji: "🐗", cost: 4, hp: 1600, dmg: 320, speed: 2.3, range: 50, target: "tower", arena: 2 },
+        { id: 7, name: "BEBÉ DRAGÓN", emoji: "🐉", cost: 4, hp: 1100, dmg: 100, speed: 1.4, range: 160, arena: 2 },
+        { id: 8, name: "VALQUIRIA", emoji: "🪓", cost: 4, hp: 1500, dmg: 220, speed: 1.1, range: 45, arena: 2 },
+        { id: 9, name: "MOSQUETERA", emoji: "👩‍🚀", cost: 4, hp: 800, dmg: 200, speed: 1.0, range: 220, arena: 3 },
+        { id: 10, name: "PRÍNCIPE", emoji: "🏇", cost: 5, hp: 1800, dmg: 350, speed: 1.8, range: 55, arena: 3 },
+        { id: 11, name: "MAGO", emoji: "🔥", cost: 5, hp: 700, dmg: 240, speed: 1.0, range: 200, arena: 3 },
+        { id: 12, name: "BÁRBAROS", emoji: "🧔", cost: 5, hp: 800, dmg: 150, speed: 1.0, range: 45, arena: 3 },
+        { id: 13, name: "GLOBO", emoji: "🎈", cost: 5, hp: 1400, dmg: 900, speed: 1.0, range: 50, target: "tower", arena: 4 },
+        { id: 14, name: "PEKKA", emoji: "🦾", cost: 7, hp: 3800, dmg: 800, speed: 0.8, range: 50, arena: 4 },
+        { id: 15, name: "CHISQUITAS", emoji: "⚡", cost: 6, hp: 1200, dmg: 1200, speed: 0.7, range: 190, arena: 4 },
+        { id: 16, name: "MAGO ELÉCTRICO", emoji: "🌩️", cost: 4, hp: 700, dmg: 100, speed: 1.2, range: 200, arena: 5 },
+        { id: 17, name: "MEGACABALLERO", emoji: "🛡️", cost: 7, hp: 3500, dmg: 250, speed: 1.3, range: 50, arena: 5 },
+        { id: 18, name: "MINERO", emoji: "⛏️", cost: 3, hp: 1200, dmg: 120, speed: 1.5, range: 45, arena: 5 },
+        { id: 19, name: "TRONCO", emoji: "🪵", cost: 2, hp: 1, dmg: 250, isSpell: true, arena: 5 }
     ];
 
-    let units = [], towers = [], projectiles = [];
-    let playerHand = [], deckIndex = 4;
-    let playerElixir = 5, enemyElixir = 5;
-    let selectedCard = -1, gameTime = 180, gameOver = false;
-    let lastElixir = Date.now(), lastAI = Date.now();
-    const PUENTES = [{ x: 95, y: H/2 }, { x: 385, y: H/2 }];
+    const ARENAS = [
+        { name: "ESTADIO DUENDE", min: 0, color: "#2ecc71" },
+        { name: "FOSO DE HUESOS", min: 400, color: "#95a5a6" },
+        { name: "COLISEO BÁRBARO", min: 800, color: "#e67e22" },
+        { name: "FUERTE DEL PEKKA", min: 1200, color: "#2c3e50" },
+        { name: "VALLE ELÉCTRICO", min: 1600, color: "#3498db" }
+    ];
 
-    // --- NAVEGACIÓN ---
-    function showPage(pageId, el) {
-        if(inBattle) return;
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav'));
-        
-        if(pageId === 'home') document.getElementById('home-page').classList.add('active');
-        if(pageId === 'deck') {
-            document.getElementById('deck-page').classList.add('active');
-            renderDeck();
-        }
-        el.classList.add('active-nav');
-    }
+    let player = { trophies: 0, deck: [], chests: [null, null, null, null], arenaIdx: 0 };
 
-    function renderDeck() {
-        const grid = document.getElementById('deck-display');
-        grid.innerHTML = CARDS.map(c => `
-            <div class="inventory-card">
-                <span class="card-lvl">NIV. ${Math.floor(cardLevel * 10) / 10}</span>
-                <div style="font-size: 50px;">${c.emoji}</div>
-                <div style="margin-top:10px; color:var(--gold)">${c.name}</div>
-                <div style="font-size:12px; opacity:0.8">Daño: ${Math.floor(c.dmg * cardLevel)}</div>
+    // --- COFRES ---
+    function updateChests() {
+        const slots = document.getElementById('chest-slots');
+        slots.innerHTML = player.chests.map((c, i) => `
+            <div class="chest-slot ${c ? 'filled' : ''}" onclick="openChest(${i})">
+                ${c ? `<span style="font-size:35px">🎁</span><br><b>${c}</b>` : 'VACÍO'}
             </div>
         `).join('');
     }
 
-    // --- LÓGICA DE BATALLA ---
+    function openChest(i) {
+        if (!player.chests[i]) return;
+        const reward = Math.floor(Math.random() * 20) + 15;
+        alert(`¡COFRE ABIERTO!\nObtenido: 🏆 ${reward} Copas`);
+        player.trophies += reward;
+        player.chests[i] = null;
+        checkArena();
+        updateHomeUI();
+    }
+
+    // --- PROGRESO ---
+    function checkArena() {
+        let newIdx = 0;
+        for(let i=0; i<ARENAS.length; i++) {
+            if(player.trophies >= ARENAS[i].min) newIdx = i;
+        }
+        player.arenaIdx = newIdx;
+    }
+
+    // --- NAVEGACIÓN ---
+    function showTab(id, el) {
+        if (inBattle) return;
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav'));
+        document.getElementById(id + '-page').classList.add('active-page');
+        el.classList.add('active-nav');
+        if (id === 'deck') renderDeck();
+        if (id === 'home') updateHomeUI();
+    }
+
+    function renderDeck() {
+        const grid = document.getElementById('inventory');
+        grid.innerHTML = CARDS.map(c => {
+            const locked = player.arenaIdx + 1 < c.arena;
+            const selected = player.deck.includes(c.id);
+            return `
+                <div class="card ${locked ? 'locked' : ''} ${selected ? 'selected' : ''}" onclick="toggleCard(${c.id}, ${locked})">
+                    <div class="card-cost">${c.cost}</div>
+                    <div style="font-size:45px; margin:5px 0">${c.emoji}</div>
+                    <div style="font-size:10px; font-weight:800">${c.name}</div>
+                    ${locked ? `<div class="lock-icon">🔒</div>` : ''}
+                </div>
+            `;
+        }).join('');
+        document.getElementById('count').innerText = player.deck.length;
+    }
+
+    function toggleCard(id, locked) {
+        if (locked) return;
+        const idx = player.deck.indexOf(id);
+        if (idx > -1) player.deck.splice(idx, 1);
+        else if (player.deck.length < 4) player.deck.push(id);
+        renderDeck();
+        updateHomeUI();
+    }
+
+    function updateHomeUI() {
+        document.getElementById('trophies-display').innerText = player.trophies;
+        document.getElementById('arena-name').innerText = ARENAS[player.arenaIdx].name;
+        document.getElementById('btn-battle').disabled = player.deck.length < 4;
+        document.getElementById('deck-status').style.display = player.deck.length < 4 ? 'block' : 'none';
+        updateChests();
+    }
+
+    // --- MOTOR DE BATALLA ---
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let inBattle = false, units = [], towers = [], projectiles = [];
+    let elixir = 5, enemyElixir = 5, selectedCard = -1;
+
     function startBattle() {
         inBattle = true;
-        document.getElementById('home-page').classList.remove('active');
-        document.getElementById('nav-bar').style.display = 'none';
-        document.getElementById('battle-ui').style.display = 'block';
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+        document.getElementById('nav').style.display = 'none';
         canvas.style.display = 'block';
         
-        initBattle();
-        requestAnimationFrame(gameLoop);
-    }
-
-    function initBattle() {
-        units = []; projectiles = [];
-        const m = ARENA_THEMES[currentArena].enemyMult;
-        document.getElementById('arena-name-txt').innerText = ARENA_THEMES[currentArena].name;
-        
+        units = []; projectiles = []; elixir = 5; enemyElixir = 5;
         towers = [
-            // Enemigas
-            { x: 95, y: 150, team: 1, hp: 2500*m, max: 2500*m, range: 170, dmg: 95*m, atkSpeed: 850, lastAttack: 0 },
-            { x: 385, y: 150, team: 1, hp: 2500*m, max: 2500*m, range: 170, dmg: 95*m, atkSpeed: 850, lastAttack: 0 },
-            { x: 240, y: 80, team: 1, hp: 4200*m, max: 4200*m, isKing: true, range: 200, dmg: 110*m, atkSpeed: 1000, lastAttack: 0 },
-            // Jugador
-            { x: 95, y: 600, team: 0, hp: 2500*cardLevel, max: 2500*cardLevel, range: 170, dmg: 95*cardLevel, atkSpeed: 850, lastAttack: 0 },
-            { x: 385, y: 600, team: 0, hp: 2500*cardLevel, max: 2500*cardLevel, range: 170, dmg: 95*cardLevel, atkSpeed: 850, lastAttack: 0 },
-            { x: 240, y: 670, team: 0, hp: 4200*cardLevel, max: 4200*cardLevel, isKing: true, range: 200, dmg: 110*cardLevel, atkSpeed: 1000, lastAttack: 0 }
+            { x: 100, y: 150, team: 1, hp: 2500, max: 2500, range: 190 },
+            { x: 380, y: 150, team: 1, hp: 2500, max: 2500, range: 190 },
+            { x: 240, y: 80, team: 1, hp: 4500, max: 4500, isKing: true, range: 220 },
+            { x: 100, y: 600, team: 0, hp: 2500, max: 2500, range: 190 },
+            { x: 380, y: 600, team: 0, hp: 2500, max: 2500, range: 190 },
+            { x: 240, y: 670, team: 0, hp: 4500, max: 4500, isKing: true, range: 220 }
         ];
-        playerHand = CARDS.slice(0, 4);
-        playerElixir = 5; enemyElixir = 5; gameTime = 180; gameOver = false;
+        requestAnimationFrame(battleLoop);
     }
 
-    function update() {
-        if (gameOver) return;
-        const now = Date.now();
-
-        // Elixir y Reloj
-        if (now - lastElixir > 1000) {
-            playerElixir = Math.min(10, playerElixir + 0.5);
-            enemyElixir = Math.min(10, enemyElixir + (0.4 * ARENA_THEMES[currentArena].enemyMult));
-            gameTime--;
-            document.getElementById('timer-txt').innerText = `${Math.floor(gameTime/60)}:${(gameTime%60).toString().padStart(2,'0')}`;
-            lastElixir = now;
-            if (gameTime <= 0) checkWinner();
+    function battleLoop() {
+        if (!inBattle) return;
+        elixir = Math.min(10, elixir + 0.006);
+        enemyElixir = Math.min(10, enemyElixir + 0.005);
+        
+        // IA Enemiga (Usa cartas aleatorias del pool desbloqueado)
+        if (enemyElixir > 7) {
+            const possible = CARDS.filter(c => c.arena <= player.arenaIdx + 1);
+            const c = possible[Math.floor(Math.random()*possible.length)];
+            units.push({...c, x: Math.random()>0.5?100:380, y: 120, team: 1, curHp: c.hp, lastAtk: 0});
+            enemyElixir -= c.cost;
         }
 
-        // IA
-        if (now - lastAI > 2800 / ARENA_THEMES[currentArena].enemyMult) {
-            const card = CARDS[Math.floor(Math.random() * CARDS.length)];
-            if (enemyElixir >= card.cost) {
-                enemyElixir -= card.cost;
-                const m = ARENA_THEMES[currentArena].enemyMult;
-                units.push({...card, x: Math.random()>0.5?95:385, y: 150, team: 1, currentHp: card.hp*m, dmg: card.dmg*m, speed: card.speed*(1+m/10), lastAttack: 0});
-                lastAI = now;
-            }
-        }
-
-        // Movimiento por puentes
+        // Lógica de movimiento y ataque
         units.forEach(u => {
-            let targets = u.target === "building" ? towers.filter(t => t.team !== u.team && t.hp > 0) : 
-                          [...towers.filter(t => t.team !== u.team && t.hp > 0), ...units.filter(un => un.team !== u.team)];
-            
-            let closest = targets.reduce((prev, curr) => {
-                const d = Math.hypot(curr.x - u.x, curr.y - u.y);
-                return d < prev.d ? {t:curr, d:d} : prev;
-            }, {t:null, d:Infinity});
+            const targets = towers.filter(t => t.team !== u.team && t.hp > 0);
+            const target = targets.reduce((prev, curr) => 
+                Math.hypot(curr.x-u.x, curr.y-u.y) < Math.hypot(prev.x-u.x, prev.y-u.y) ? curr : prev, targets[0]);
 
-            if (closest.t) {
-                let dX = closest.t.x, dY = closest.t.y;
-                // Lógica de puente
-                if ((u.team === 0 && u.y > H/2 && closest.t.y < H/2) || (u.team === 1 && u.y < H/2 && closest.t.y > H/2)) {
-                    const p = u.x < W/2 ? PUENTES[0] : PUENTES[1];
-                    dX = p.x; dY = p.y;
-                }
-
-                const distToTarget = Math.hypot(closest.t.x - u.x, closest.t.y - u.y);
-                if (distToTarget > u.range) {
-                    const angle = Math.atan2(dY - u.y, dX - u.x);
+            if (target) {
+                const dist = Math.hypot(target.x - u.x, target.y - u.y);
+                if (dist > u.range) {
+                    const angle = Math.atan2(target.y - u.y, target.x - u.x);
                     u.x += Math.cos(angle) * u.speed;
                     u.y += Math.sin(angle) * u.speed;
-                } else if (now - u.lastAttack > u.atkSpeed) {
-                    u.lastAttack = now;
-                    if (closest.t.currentHp !== undefined) closest.t.currentHp -= u.dmg; else closest.t.hp -= u.dmg;
+                } else if (Date.now() - (u.lastAtk || 0) > 1000) {
+                    target.hp -= u.dmg;
+                    u.lastAtk = Date.now();
                 }
             }
         });
 
-        // Torres y Proyectiles
+        // Torres disparan
         towers.forEach(t => {
             if (t.hp <= 0) return;
-            let target = units.find(u => u.team !== t.team && Math.hypot(u.x - t.x, u.y - t.y) < t.range);
-            if (target && now - t.lastAttack > t.atkSpeed) {
-                t.lastAttack = now;
-                projectiles.push({x: t.x, y: t.y, tx: target.x, ty: target.y, dmg: t.dmg, target});
+            const enemy = units.find(u => u.team !== t.team && Math.hypot(u.x-t.x, u.y-t.y) < t.range);
+            if (enemy && Date.now() - (t.lastAtk || 0) > 1000) {
+                projectiles.push({x: t.x, y: t.y, target: enemy, dmg: 110});
+                t.lastAtk = Date.now();
             }
         });
 
+        // Proyectiles
         projectiles.forEach((p, i) => {
-            const angle = Math.atan2(p.ty - p.y, p.tx - p.x);
-            p.x += Math.cos(angle) * 12; p.y += Math.sin(angle) * 12;
-            if (Math.hypot(p.tx - p.x, p.ty - p.y) < 15) {
-                if (p.target.currentHp !== undefined) p.target.currentHp -= p.dmg;
+            const angle = Math.atan2(p.target.y - p.y, p.target.x - p.x);
+            p.x += Math.cos(angle) * 8; p.y += Math.sin(angle) * 8;
+            if (Math.hypot(p.target.x - p.x, p.target.y - p.y) < 15) {
+                p.target.curHp -= p.dmg;
                 projectiles.splice(i, 1);
             }
         });
 
-        units = units.filter(u => u.currentHp > 0);
-        if (towers[2].hp <= 0) finishGame(0);
-        if (towers[5].hp <= 0) finishGame(1);
-    }
-
-    function draw() {
-        const theme = ARENA_THEMES[currentArena];
-        ctx.fillStyle = theme.ground; ctx.fillRect(0,0,W,H);
-        ctx.fillStyle = theme.path; ctx.fillRect(65, 0, 60, H); ctx.fillRect(355, 0, 60, H);
-        ctx.fillStyle = theme.river; ctx.fillRect(0, H/2 - 25, W, 50);
-        PUENTES.forEach(p => { ctx.fillStyle = theme.bridge; ctx.fillRect(p.x-40, p.y-30, 80, 60); });
+        units = units.filter(u => u.curHp > 0);
+        
+        // Dibujado
+        ctx.fillStyle = ARENAS[player.arenaIdx].color; ctx.fillRect(0,0,480,800);
+        ctx.fillStyle = "rgba(0,0,0,0.1)"; ctx.fillRect(0, 380, 480, 40); // Rio
+        ctx.fillStyle = "#7e5109"; ctx.fillRect(70, 370, 60, 60); ctx.fillRect(350, 370, 60, 60); // Puentes
 
         towers.forEach(t => {
             if (t.hp <= 0) return;
             ctx.fillStyle = t.team === 0 ? "#2980b9" : "#c0392b";
-            const s = t.isKing ? 50 : 40;
-            ctx.fillRect(t.x-s/2, t.y-s/2, s, s);
-            ctx.fillStyle = "white"; ctx.font = "20px Arial"; ctx.fillText(t.isKing?"👑":"🏰", t.x, t.y+7);
+            ctx.fillRect(t.x-25, t.y-25, 50, 50);
+            ctx.fillStyle = "#2ecc71"; ctx.fillRect(t.x-25, t.y-35, 50*(t.hp/t.max), 6);
         });
 
         units.forEach(u => {
-            ctx.fillStyle = "white"; ctx.font = "28px Arial"; ctx.fillText(u.emoji, u.x, u.y+10);
-            ctx.fillStyle = "black"; ctx.fillRect(u.x-15, u.y-22, 30, 4);
-            ctx.fillStyle = u.team === 0 ? "cyan" : "red";
-            const m = u.team === 0 ? cardLevel : ARENA_THEMES[currentArena].enemyMult;
-            ctx.fillRect(u.x-15, u.y-22, 30 * (u.currentHp/(u.hp*m)), 4);
+            ctx.font = "32px Arial"; ctx.fillText(u.emoji, u.x-16, u.y+12);
         });
 
-        projectiles.forEach(p => { ctx.fillStyle="yellow"; ctx.beginPath(); ctx.arc(p.x,p.y,5,0,Math.PI*2); ctx.fill(); });
+        projectiles.forEach(p => { ctx.fillStyle="black"; ctx.beginPath(); ctx.arc(p.x,p.y,5,0,Math.PI*2); ctx.fill(); });
 
-        // Cartas en Batalla
-        ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0, H-150, W, 150);
-        playerHand.forEach((c, i) => {
-            const x = 20 + i * 110, y = H-130;
-            ctx.fillStyle = playerElixir >= c.cost ? "#34495e" : "#222";
-            ctx.fillRect(x, y, 95, 110);
-            if(selectedCard === i) { ctx.strokeStyle="white"; ctx.lineWidth=3; ctx.strokeRect(x,y,95,110); }
-            ctx.fillStyle="white"; ctx.font="30px Arial"; ctx.fillText(c.emoji, x+47, y+55);
-            ctx.fillStyle="#e056fd"; ctx.beginPath(); ctx.arc(x+15, y+15, 12, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle="white"; ctx.font="14px Bangers"; ctx.fillText(c.cost, x+15, y+20);
+        // Mano e Interfaz
+        ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0, 680, 480, 120);
+        player.deck.forEach((id, i) => {
+            const c = CARDS.find(x => x.id === id);
+            ctx.fillStyle = selectedCard === i ? var(--gold) : "#34495e";
+            ctx.fillRect(20 + i*115, 690, 95, 100);
+            ctx.fillStyle="white"; ctx.font="30px Arial"; ctx.fillText(c.emoji, 50+i*115, 750);
+            ctx.font="16px Bangers"; ctx.fillText(c.cost, 30+i*115, 710);
         });
-        ctx.fillStyle="#e056fd"; ctx.fillRect(20, H-15, (playerElixir/10)*(W-40), 8);
+        ctx.fillStyle = var(--purple); ctx.fillRect(20, 785, (elixir/10)*440, 10);
+
+        if (towers[2].hp <= 0) endBattle("VICTORIA");
+        else if (towers[5].hp <= 0) endBattle("DERROTA");
+        else requestAnimationFrame(battleLoop);
     }
 
-    function finishGame(winner) {
-        gameOver = true;
+    function endBattle(res) {
         inBattle = false;
-        if (winner === 0) {
-            wins++;
-            if (wins % 2 === 0 && currentArena < 4) {
-                currentArena++;
-                cardLevel += 0.2;
-            }
+        const msg = document.getElementById('battle-msg');
+        msg.innerText = res; msg.style.display = 'block';
+        if (res === "VICTORIA") {
+            player.trophies += 30;
+            const empty = player.chests.indexOf(null);
+            if (empty > -1) player.chests[empty] = "COFRE ORO";
+            checkArena();
+        } else {
+            player.trophies = Math.max(0, player.trophies - 15);
         }
-        updateMainUI();
         setTimeout(() => {
+            msg.style.display = 'none';
             canvas.style.display = 'none';
-            document.getElementById('battle-ui').style.display = 'none';
-            document.getElementById('nav-bar').style.display = 'flex';
-            document.getElementById('home-page').classList.add('active');
+            document.getElementById('nav').style.display = 'flex';
+            showTab('home', document.querySelectorAll('.nav-item')[1]);
         }, 3000);
-    }
-
-    function updateMainUI() {
-        document.getElementById('stats-wins').innerText = `VICTORIAS: ${wins}`;
-        document.getElementById('stats-arena').innerText = `ARENA ${currentArena}: ${ARENA_THEMES[currentArena].name}`;
     }
 
     canvas.addEventListener('mousedown', e => {
         const rect = canvas.getBoundingClientRect();
-        const mx = (e.clientX - rect.left) * (W/rect.width), my = (e.clientY - rect.top) * (H/rect.height);
-        if (my > H-150) {
-            const i = Math.floor((mx-20)/110);
-            if (i >= 0 && i < 4) selectedCard = i;
-        } else if (selectedCard !== -1 && my > H/2) {
-            const c = playerHand[selectedCard];
-            if (playerElixir >= c.cost) {
-                playerElixir -= c.cost;
-                units.push({...c, x:mx, y:my, team:0, currentHp: c.hp*cardLevel, dmg: c.dmg*cardLevel, speed: c.speed*(1+cardLevel/15), lastAttack:0});
-                playerHand[selectedCard] = CARDS[deckIndex++ % CARDS.length];
+        const x = (e.clientX - rect.left) * (480/rect.width);
+        const y = (e.clientY - rect.top) * (800/rect.height);
+        if (y > 680) selectedCard = Math.floor((x-20)/115);
+        else if (selectedCard !== -1 && y > 400) {
+            const c = CARDS.find(v => v.id === player.deck[selectedCard]);
+            if (elixir >= c.cost) {
+                elixir -= c.cost;
+                units.push({...c, x, y, team: 0, curHp: c.hp, lastAtk: 0});
                 selectedCard = -1;
             }
         }
     });
 
-    function gameLoop() { if(inBattle) { update(); draw(); requestAnimationFrame(gameLoop); } }
-    updateMainUI();
+    updateHomeUI();
 </script>
 </body>
 </html>
