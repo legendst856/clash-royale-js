@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
+    <title>Clash Royale JS - Portal tamcpoco</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
+        
+        :root {
+            --gold: #f1c40f;
+            --blue: #3498db;
+            --purple: #e056fd;
+            --dark: #121212;
+        }
+
+        body { 
+            margin: 0; 
+            background: #000; 
+            font-family: 'Bangers', cursive; 
+            color: white; 
+            overflow: hidden; 
+            display: flex;
+            justify-content: center;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            position: relative;
+            background: #2c3e50;
+            overflow: hidden;
+            border-left: 2px solid #333;
+            border-right: 2px solid #333;
+        }
+
+        /* Pantallas */
+        .page {
+            display: none;
+            width: 100%;
+            height: calc(100% - 70px);
+            position: absolute;
+            top: 0;
+            overflow-y: auto;
+        }
+        .active { display: block; }
+
+        /* Pantalla Inicio */
+        #home-page {
+            background: linear-gradient(to bottom, #1e3799, #0c2461);
+            text-align: center;
+            padding-top: 60px;
+        }
+
+        .battle-btn {
+            background: #e67e22;
+            border: 4px solid #d35400;
+            color: white;
+            font-family: 'Bangers';
+            font-size: 45px;
+            padding: 20px 70px;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #a04000;
+            margin-top: 80px;
+            transition: 0.1s;
+        }
+        .battle-btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #a04000; }
+
+        /* Pantalla Mazo */
+        #deck-page { background: #34495e; padding: 20px; box-sizing: border-box; }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .inventory-card {
+            background: #2c3e50;
+            border: 3px solid #7f8c8d;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            position: relative;
+        }
+        .card-lvl { position: absolute; top: 5px; right: 10px; color: var(--gold); }
+
+        /* Navegación Inferior */
+        #nav-bar {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 70px;
+            background: #111;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 4px solid #444;
+            z-index: 100;
+        }
+        .nav-item { cursor: pointer; font-size: 18px; color: #7f8c8d; transition: 0.3s; text-align: center; }
+        .nav-item.active-nav { color: var(--gold); transform: scale(1.1); }
+
+        /* Canvas de Batalla */
+        canvas { display: none; background: #000; }
+        
+        .timer-ui {
+            position: absolute; top: 10px; width: 100%; text-align: center;
+            pointer-events: none; z-index: 50; display: none;
+        }
+        .timer-box { background: rgba(0,0,0,0.8); padding: 5px 20px; border-radius: 10px; border: 2px solid var(--gold); font-size: 24px; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <div id="battle-ui" class="timer-ui">
+        <div class="timer-box" id="timer-txt">3:00</div>
+        <div id="arena-name-txt" style="font-size: 14px; margin-top: 5px;"></div>
+    </div>
+
+    <div id="home-page" class="page active">
+        <h1 style="font-size: 50px; text-shadow: 4px 4px #000; margin-bottom: 5px;">TAMCPOCO</h1>
+        <p style="letter-spacing: 2px;">PORTAL DE BATALLA</p>
+        
+        <div style="margin-top: 40px; background: rgba(0,0,0,0.4); padding: 20px;">
+            <div id="stats-wins" style="font-size: 24px;">VICTORIAS: 0</div>
+            <div id="stats-arena" style="font-size: 20px; color: var(--gold);">ARENA 1</div>
+        </div>
+
+        <button class="battle-btn" onclick="startBattle()">¡BATALLA!</button>
+    </div>
+
+    <div id="deck-page" class="page">
+        <h2 style="text-align: center; font-size: 32px; border-bottom: 2px solid var(--gold);">COLECCIÓN</h2>
+        <div class="card-grid" id="deck-display"></div>
+    </div>
+
+    <canvas id="canvas" width="480" height="800"></canvas>
+
+    <div id="nav-bar">
+        <div class="nav-item" onclick="showPage('deck', this)">🃏<br>MAZO</div>
+        <div class="nav-item active-nav" onclick="showPage('home', this)">⚔️<br>INICIO</div>
+        <div class="nav-item" onclick="alert('Portal tamcpoco: Social próximamente')">👥<br>AMIGOS</div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const W = 480, H = 800;
+
+    // --- ESTADO GLOBAL ---
+    let currentArena = 1;
+    let wins = 0;
+    let cardLevel = 1.0;
+    let inBattle = false;
+
+    const ARENA_THEMES = {
+        1: { name: "ESTADIO DUENDE", ground: "#27ae60", river: "#2980b9", bridge: "#7e5109", path: "#2ecc71", enemyMult: 1.0 },
+        2: { name: "FOSO DE HUESOS", ground: "#535c68", river: "#130f40", bridge: "#30336b", path: "#95afc0", enemyMult: 1.3 },
+        3: { name: "COLISEO BÁRBARO", ground: "#d35400", river: "#8e44ad", bridge: "#2c3e50", path: "#e67e22", enemyMult: 1.6 },
+        4: { name: "ARENA LEGENDARIA", ground: "#130f40", river: "#00d2ff", bridge: "#f1c40f", path: "#192a56", enemyMult: 2.2 }
+    };
+
+    const CARDS = [
+        { name: "GIGANTE", cost: 5, hp: 3200, dmg: 160, speed: 0.8, range: 45, atkSpeed: 1500, target: "building", emoji: "🧔" },
+        { name: "MOSQUETERA", cost: 4, hp: 600, dmg: 180, speed: 1.3, range: 200, atkSpeed: 1100, target: "any", emoji: "👩‍🚀" },
+        { name: "MINI PEKKA", cost: 4, hp: 1100, dmg: 550, speed: 1.7, range: 50, atkSpeed: 1800, target: "any", emoji: "🤖" },
+        { name: "PRÍNCIPE", cost: 5, hp: 1500, dmg: 400, speed: 2.3, range: 55, atkSpeed: 1400, target: "any", emoji: "🏇" },
+        { name: "ESQUELETO", cost: 1, hp: 120, dmg: 60, speed: 2.1, range: 40, atkSpeed: 800, target: "any", emoji: "💀" },
+        { name: "MONTAPUERCOS", cost: 4, hp: 1400, dmg: 260, speed: 2.5, range: 45, atkSpeed: 1600, target: "building", emoji: "🐗" }
+    ];
+
+    let units = [], towers = [], projectiles = [];
+    let playerHand = [], deckIndex = 4;
+    let playerElixir = 5, enemyElixir = 5;
+    let selectedCard = -1, gameTime = 180, gameOver = false;
+    let lastElixir = Date.now(), lastAI = Date.now();
+    const PUENTES = [{ x: 95, y: H/2 }, { x: 385, y: H/2 }];
+
+    // --- NAVEGACIÓN ---
+    function showPage(pageId, el) {
+        if(inBattle) return;
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav'));
+        
+        if(pageId === 'home') document.getElementById('home-page').classList.add('active');
+        if(pageId === 'deck') {
+            document.getElementById('deck-page').classList.add('active');
+            renderDeck();
+        }
+        el.classList.add('active-nav');
+    }
+
+    function renderDeck() {
+        const grid = document.getElementById('deck-display');
+        grid.innerHTML = CARDS.map(c => `
+            <div class="inventory-card">
+                <span class="card-lvl">NIV. ${Math.floor(cardLevel * 10) / 10}</span>
+                <div style="font-size: 50px;">${c.emoji}</div>
+                <div style="margin-top:10px; color:var(--gold)">${c.name}</div>
+                <div style="font-size:12px; opacity:0.8">Daño: ${Math.floor(c.dmg * cardLevel)}</div>
+            </div>
+        `).join('');
+    }
+
+    // --- LÓGICA DE BATALLA ---
+    function startBattle() {
+        inBattle = true;
+        document.getElementById('home-page').classList.remove('active');
+        document.getElementById('nav-bar').style.display = 'none';
+        document.getElementById('battle-ui').style.display = 'block';
+        canvas.style.display = 'block';
+        
+        initBattle();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function initBattle() {
+        units = []; projectiles = [];
+        const m = ARENA_THEMES[currentArena].enemyMult;
+        document.getElementById('arena-name-txt').innerText = ARENA_THEMES[currentArena].name;
+        
+        towers = [
+            // Enemigas
+            { x: 95, y: 150, team: 1, hp: 2500*m, max: 2500*m, range: 170, dmg: 95*m, atkSpeed: 850, lastAttack: 0 },
+            { x: 385, y: 150, team: 1, hp: 2500*m, max: 2500*m, range: 170, dmg: 95*m, atkSpeed: 850, lastAttack: 0 },
+            { x: 240, y: 80, team: 1, hp: 4200*m, max: 4200*m, isKing: true, range: 200, dmg: 110*m, atkSpeed: 1000, lastAttack: 0 },
+            // Jugador
+            { x: 95, y: 600, team: 0, hp: 2500*cardLevel, max: 2500*cardLevel, range: 170, dmg: 95*cardLevel, atkSpeed: 850, lastAttack: 0 },
+            { x: 385, y: 600, team: 0, hp: 2500*cardLevel, max: 2500*cardLevel, range: 170, dmg: 95*cardLevel, atkSpeed: 850, lastAttack: 0 },
+            { x: 240, y: 670, team: 0, hp: 4200*cardLevel, max: 4200*cardLevel, isKing: true, range: 200, dmg: 110*cardLevel, atkSpeed: 1000, lastAttack: 0 }
+        ];
+        playerHand = CARDS.slice(0, 4);
+        playerElixir = 5; enemyElixir = 5; gameTime = 180; gameOver = false;
+    }
+
+    function update() {
+        if (gameOver) return;
+        const now = Date.now();
+
+        // Elixir y Reloj
+        if (now - lastElixir > 1000) {
+            playerElixir = Math.min(10, playerElixir + 0.5);
+            enemyElixir = Math.min(10, enemyElixir + (0.4 * ARENA_THEMES[currentArena].enemyMult));
+            gameTime--;
+            document.getElementById('timer-txt').innerText = `${Math.floor(gameTime/60)}:${(gameTime%60).toString().padStart(2,'0')}`;
+            lastElixir = now;
+            if (gameTime <= 0) checkWinner();
+        }
+
+        // IA
+        if (now - lastAI > 2800 / ARENA_THEMES[currentArena].enemyMult) {
+            const card = CARDS[Math.floor(Math.random() * CARDS.length)];
+            if (enemyElixir >= card.cost) {
+                enemyElixir -= card.cost;
+                const m = ARENA_THEMES[currentArena].enemyMult;
+                units.push({...card, x: Math.random()>0.5?95:385, y: 150, team: 1, currentHp: card.hp*m, dmg: card.dmg*m, speed: card.speed*(1+m/10), lastAttack: 0});
+                lastAI = now;
+            }
+        }
+
+        // Movimiento por puentes
+        units.forEach(u => {
+            let targets = u.target === "building" ? towers.filter(t => t.team !== u.team && t.hp > 0) : 
+                          [...towers.filter(t => t.team !== u.team && t.hp > 0), ...units.filter(un => un.team !== u.team)];
+            
+            let closest = targets.reduce((prev, curr) => {
+                const d = Math.hypot(curr.x - u.x, curr.y - u.y);
+                return d < prev.d ? {t:curr, d:d} : prev;
+            }, {t:null, d:Infinity});
+
+            if (closest.t) {
+                let dX = closest.t.x, dY = closest.t.y;
+                // Lógica de puente
+                if ((u.team === 0 && u.y > H/2 && closest.t.y < H/2) || (u.team === 1 && u.y < H/2 && closest.t.y > H/2)) {
+                    const p = u.x < W/2 ? PUENTES[0] : PUENTES[1];
+                    dX = p.x; dY = p.y;
+                }
+
+                const distToTarget = Math.hypot(closest.t.x - u.x, closest.t.y - u.y);
+                if (distToTarget > u.range) {
+                    const angle = Math.atan2(dY - u.y, dX - u.x);
+                    u.x += Math.cos(angle) * u.speed;
+                    u.y += Math.sin(angle) * u.speed;
+                } else if (now - u.lastAttack > u.atkSpeed) {
+                    u.lastAttack = now;
+                    if (closest.t.currentHp !== undefined) closest.t.currentHp -= u.dmg; else closest.t.hp -= u.dmg;
+                }
+            }
+        });
+
+        // Torres y Proyectiles
+        towers.forEach(t => {
+            if (t.hp <= 0) return;
+            let target = units.find(u => u.team !== t.team && Math.hypot(u.x - t.x, u.y - t.y) < t.range);
+            if (target && now - t.lastAttack > t.atkSpeed) {
+                t.lastAttack = now;
+                projectiles.push({x: t.x, y: t.y, tx: target.x, ty: target.y, dmg: t.dmg, target});
+            }
+        });
+
+        projectiles.forEach((p, i) => {
+            const angle = Math.atan2(p.ty - p.y, p.tx - p.x);
+            p.x += Math.cos(angle) * 12; p.y += Math.sin(angle) * 12;
+            if (Math.hypot(p.tx - p.x, p.ty - p.y) < 15) {
+                if (p.target.currentHp !== undefined) p.target.currentHp -= p.dmg;
+                projectiles.splice(i, 1);
+            }
+        });
+
+        units = units.filter(u => u.currentHp > 0);
+        if (towers[2].hp <= 0) finishGame(0);
+        if (towers[5].hp <= 0) finishGame(1);
+    }
+
+    function draw() {
+        const theme = ARENA_THEMES[currentArena];
+        ctx.fillStyle = theme.ground; ctx.fillRect(0,0,W,H);
+        ctx.fillStyle = theme.path; ctx.fillRect(65, 0, 60, H); ctx.fillRect(355, 0, 60, H);
+        ctx.fillStyle = theme.river; ctx.fillRect(0, H/2 - 25, W, 50);
+        PUENTES.forEach(p => { ctx.fillStyle = theme.bridge; ctx.fillRect(p.x-40, p.y-30, 80, 60); });
+
+        towers.forEach(t => {
+            if (t.hp <= 0) return;
+            ctx.fillStyle = t.team === 0 ? "#2980b9" : "#c0392b";
+            const s = t.isKing ? 50 : 40;
+            ctx.fillRect(t.x-s/2, t.y-s/2, s, s);
+            ctx.fillStyle = "white"; ctx.font = "20px Arial"; ctx.fillText(t.isKing?"👑":"🏰", t.x, t.y+7);
+        });
+
+        units.forEach(u => {
+            ctx.fillStyle = "white"; ctx.font = "28px Arial"; ctx.fillText(u.emoji, u.x, u.y+10);
+            ctx.fillStyle = "black"; ctx.fillRect(u.x-15, u.y-22, 30, 4);
+            ctx.fillStyle = u.team === 0 ? "cyan" : "red";
+            const m = u.team === 0 ? cardLevel : ARENA_THEMES[currentArena].enemyMult;
+            ctx.fillRect(u.x-15, u.y-22, 30 * (u.currentHp/(u.hp*m)), 4);
+        });
+
+        projectiles.forEach(p => { ctx.fillStyle="yellow"; ctx.beginPath(); ctx.arc(p.x,p.y,5,0,Math.PI*2); ctx.fill(); });
+
+        // Cartas en Batalla
+        ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0, H-150, W, 150);
+        playerHand.forEach((c, i) => {
+            const x = 20 + i * 110, y = H-130;
+            ctx.fillStyle = playerElixir >= c.cost ? "#34495e" : "#222";
+            ctx.fillRect(x, y, 95, 110);
+            if(selectedCard === i) { ctx.strokeStyle="white"; ctx.lineWidth=3; ctx.strokeRect(x,y,95,110); }
+            ctx.fillStyle="white"; ctx.font="30px Arial"; ctx.fillText(c.emoji, x+47, y+55);
+            ctx.fillStyle="#e056fd"; ctx.beginPath(); ctx.arc(x+15, y+15, 12, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle="white"; ctx.font="14px Bangers"; ctx.fillText(c.cost, x+15, y+20);
+        });
+        ctx.fillStyle="#e056fd"; ctx.fillRect(20, H-15, (playerElixir/10)*(W-40), 8);
+    }
+
+    function finishGame(winner) {
+        gameOver = true;
+        inBattle = false;
+        if (winner === 0) {
+            wins++;
+            if (wins % 2 === 0 && currentArena < 4) {
+                currentArena++;
+                cardLevel += 0.2;
+            }
+        }
+        updateMainUI();
+        setTimeout(() => {
+            canvas.style.display = 'none';
+            document.getElementById('battle-ui').style.display = 'none';
+            document.getElementById('nav-bar').style.display = 'flex';
+            document.getElementById('home-page').classList.add('active');
+        }, 3000);
+    }
+
+    function updateMainUI() {
+        document.getElementById('stats-wins').innerText = `VICTORIAS: ${wins}`;
+        document.getElementById('stats-arena').innerText = `ARENA ${currentArena}: ${ARENA_THEMES[currentArena].name}`;
+    }
+
+    canvas.addEventListener('mousedown', e => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (W/rect.width), my = (e.clientY - rect.top) * (H/rect.height);
+        if (my > H-150) {
+            const i = Math.floor((mx-20)/110);
+            if (i >= 0 && i < 4) selectedCard = i;
+        } else if (selectedCard !== -1 && my > H/2) {
+            const c = playerHand[selectedCard];
+            if (playerElixir >= c.cost) {
+                playerElixir -= c.cost;
+                units.push({...c, x:mx, y:my, team:0, currentHp: c.hp*cardLevel, dmg: c.dmg*cardLevel, speed: c.speed*(1+cardLevel/15), lastAttack:0});
+                playerHand[selectedCard] = CARDS[deckIndex++ % CARDS.length];
+                selectedCard = -1;
+            }
+        }
+    });
+
+    function gameLoop() { if(inBattle) { update(); draw(); requestAnimationFrame(gameLoop); } }
+    updateMainUI();
+</script>
+</body>
+</html>
