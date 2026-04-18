@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mazos - MashRoyale</title>
+    <style>
+        /* Mismos estilos base que el index */
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Open+Sans:wght@600;800&display=swap');
+        :root { --gold: #fbc531; --purple: #9c88ff; --bg: #1e272e; }
+        body { margin: 0; background: #000; font-family: 'Open Sans', sans-serif; color: white; display: flex; justify-content: center; }
+        #app-container { width: 100%; max-width: 480px; height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
+        header { padding: 15px; text-align: center; background: rgba(0,0,0,0.3); border-bottom: 2px solid #333; }
+        header h1 { font-family: 'Bangers'; color: var(--gold); margin: 0; font-size: 38px; }
+        #main-content { flex: 1; padding: 20px; overflow-y: auto; }
+        
+        /* Estilos de Cartas */
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card { background: #353b48; border-radius: 10px; padding: 10px; text-align: center; position: relative; border: 3px solid transparent; cursor: pointer; }
+        .card.selected { border-color: var(--gold); box-shadow: 0 0 10px var(--gold); }
+        .card-cost { position: absolute; top: -5px; left: -5px; background: var(--purple); width: 22px; height: 22px; border-radius: 50%; font-size: 12px; display: flex; align-items: center; justify-content: center; border: 1.5px solid white; }
+        
+        nav { height: 80px; background: #2f3640; display: flex; border-top: 3px solid #111; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; color: #718093; font-weight: 800; font-size: 14px; }
+        .nav-item.active { color: var(--gold); background: rgba(255,255,255,0.05); }
+    </style>
+</head>
+<body>
+<div id="app-container">
+    <header><h1>MASHROYALE</h1></header>
+    <div id="main-content">
+        <h2 style="font-family:'Bangers'; text-align:center;">MI MAZO (<span id="count">0</span>/4)</h2>
+        <div class="card-grid" id="inventory"></div>
+    </div>
+    <nav>
+        <a href="mazos.html" class="nav-item active"><span>🃏</span>MAZOS</a>
+        <a href="index.html" class="nav-item"><span>⚔️</span>INICIO</a>
+        <a href="pase.html" class="nav-item"><span>🏆</span>PASE</a>
+    </nav>
+</div>
+<script>
+    const CARDS = [
+        { id: 0, name: "GIGANTE", cost: 5, emoji: "🧔" },
+        { id: 1, name: "MOSQUETERA", cost: 4, emoji: "👩‍🚀" },
+        { id: 2, name: "MINI PEKKA", cost: 4, emoji: "🤖" },
+        { id: 3, name: "PRÍNCIPE", cost: 5, emoji: "🏇" },
+        { id: 4, name: "ESQUELETO", cost: 1, emoji: "💀" },
+        { id: 5, name: "MONTAPUERCOS", cost: 4, emoji: "🐗" }
+    ];
+
+    let pData = JSON.parse(localStorage.getItem('mashroyale_data')) || { trophies: 0, arenaIdx: 0, deck: [0,1,2,3] };
+
+    function renderDeck() {
+        const grid = document.getElementById('inventory');
+        grid.innerHTML = CARDS.map(c => {
+            const isSelected = pData.deck.includes(c.id);
+            return `
+                <div class="card ${isSelected ? 'selected' : ''}" onclick="toggleCard(${c.id})">
+                    <div class="card-cost">${c.cost}</div>
+                    <div style="font-size:40px; margin:5px 0">${c.emoji}</div>
+                    <div style="font-size:11px; font-weight:800">${c.name}</div>
+                </div>
+            `;
+        }).join('');
+        document.getElementById('count').innerText = pData.deck.length;
+    }
+
+    function toggleCard(id) {
+        const idx = pData.deck.indexOf(id);
+        if (idx > -1) {
+            pData.deck.splice(idx, 1);
+        } else if (pData.deck.length < 4) {
+            pData.deck.push(id);
+        }
+        localStorage.setItem('mashroyale_data', JSON.stringify(pData));
+        renderDeck();
+    }
+
+    renderDeck();
+</script>
+</body>
+</html>
