@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batalla - MashRoyale</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
+        body { margin: 0; background: #1a1a1a; font-family: 'Bangers', cursive; display: flex; align-items: center; justify-content: center; height: 100vh; color: white; overflow: hidden; user-select: none; }
+        #game-container { position: relative; border: 8px solid #222; border-radius: 12px; background: #1e8c1e; }
+        canvas { display: block; cursor: crosshair; }
+        .ui-top { position: absolute; top: 15px; width: 100%; display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 10; }
+        .timer { background: rgba(0,0,0,0.8); padding: 4px 20px; border-radius: 12px; font-size: 24px; border: 2px solid #f1c40f; margin-bottom: 5px; }
+        .arena-info { font-size: 18px; color: #f1c40f; text-shadow: 2px 2px 0 #000; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div class="ui-top">
+            <div id="timer" class="timer">3:00</div>
+            <div id="arena-tag" class="arena-info">CARGANDO ARENA...</div>
+        </div>
+        <canvas id="canvas" width="480" height="800"></canvas>
+    </div>
+
+    <script>
+        // --- BASE DE DATOS COMPARTIDA ---
+        const CARDS = [
+            { id: 0, name: "GIGANTE", cost: 5, hp: 3200, dmg: 160, speed: 0.8, range: 40, atkSpeed: 1500, target: "building", emoji: "🧔" },
+            { id: 1, name: "MOSQUETERA", cost: 4, hp: 600, dmg: 180, speed: 1.2, range: 190, atkSpeed: 1100, target: "any", emoji: "👩‍🚀" },
+            { id: 2, name: "MINI PEKKA", cost: 4, hp: 1100, dmg: 550, speed: 1.6, range: 45, atkSpeed: 1800, target: "any", emoji: "🤖" },
+            { id: 3, name: "PRÍNCIPE", cost: 5, hp: 1500, dmg: 400, speed: 2.2, range: 50, atkSpeed: 1400, target: "any", emoji: "🏇" },
+            { id: 4, name: "ESQUELETO", cost: 1, hp: 100, dmg: 50, speed: 2.0, range: 35, atkSpeed: 1000, target: "any", emoji: "💀" },
+            { id: 5, name: "MONTAPUERCOS", cost: 4, hp: 1400, dmg: 260, speed: 2.4, range: 40, atkSpeed: 1600, target: "building", emoji: "🐗" }
+        ];
+
+        const ARENAS = [
+            { name: "ESTADIO DUENDE", color: "#1e8c1e", enemyMult: 1.0 },
+            { name: "FOSO DE HUESOS", color: "#4a4a4a", enemyMult: 1.2 },
+            { name: "COLISEO BÁRBARO", color: "#cd7f32", enemyMult: 1.5 },
+            { name: "ARENA LEGENDARIA", color: "#2c3e50", enemyMult: 2.0 }
+        ];
+
+        // Cargar datos del jugador
+        let playerData = JSON.parse(localStorage.getItem('mashroyale_data')) || { trophies: 0, arenaIdx: 0, deck: [0,1,2,3] };
+        
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const W = 480, H = 800;
+
+        let currentArena = playerData.arenaIdx;
+        let cardLevel = 1 + Math.floor(playerData.trophies / 300); // Sube de nivel según copas
+        
+        let units = [], towers = [], projectiles = [];
+        let playerHand = [], deckQueue = [];
+        let playerElixir = 5, enemyElixir = 5;
+        let selectedCard = -1, gameTime = 180, gameOver = false, resultMsg = "";
+        let lastElixir = Date.now(), lastAI = Date.now();
+
+        const PUENTES = [{ x: 90, y: H/2 }, { x: 390, y: H/2 }];
+
+        function init() {
+            const diff = ARENAS[currentArena].enemyMult;
+            towers = [
+                { x: 90, y: 150, team: 1, hp: 2500 * diff, max: 2500 * diff, range: 170, dmg: 90 * diff, atkSpeed: 800, lastAttack: 0 },
+                { x: 390, y: 150, team: 1, hp: 2500 * diff, max: 2500 * diff, range: 170, dmg: 90 * diff, atkSpeed: 800, lastAttack: 0 },
+                { x: 240, y: 80, team: 1, hp: 4000 * diff, max: 4000 * diff, isKing: true, range: 190, dmg: 100 * diff, atkSpeed: 1000, lastAttack: 0 },
+                { x: 90, y: 600, team: 0, hp: 2500 * cardLevel, max: 2500 * cardLevel, range: 170, dmg: 90 * cardLevel, atkSpeed: 800, lastAttack: 0 },
+                { x: 390, y: 600, team: 0, hp: 2500 * cardLevel, max: 2500 * cardLevel, range: 170, dmg: 90 * cardLevel, atkSpeed: 800, lastAttack: 0 },
+                { x: 240, y: 670, team: 0, hp: 4000 * cardLevel, max: 4000 * cardLevel, isKing: true, range: 190, dmg: 100 * cardLevel, atkSpeed: 1000, lastAttack: 0 }
+            ];
+            
+            // Cargar mazo real del jugador
+            let realDeck = playerData.deck.map(id => CARDS.find(c => c.id === id));
+            playerHand = realDeck.slice(0, 4);
+            deckQueue = realDeck.slice(); 
+
+            document.getElementById('arena-tag').innerText = `ARENA ${currentArena + 1}: ${ARENAS[currentArena].name} (LVL ${cardLevel})`;
+        }
+
+        function update() {
+            if (gameOver) return;
+            const now = Date.now();
+
+            if (now - lastElixir > 1000) { 
+                playerElixir = Math.min(10, playerElixir + 0.4); 
+                enemyElixir = Math.min(10, enemyElixir + (0.35 * ARENAS[currentArena].enemyMult)); 
+                lastElixir = now; 
+                if(gameTime > 0) gameTime--;
+                document.getElementById('timer').innerText = `${Math.floor(gameTime/60)}:${(gameTime%60).toString().padStart(2,'0')}`;
+                if(gameTime === 0) endGame(towers[2].hp > towers[5].hp ? 0 : 1);
+            }
+
+            // IA Enemiga
+            if (now - lastAI > 2500 / ARENAS[currentArena].enemyMult) {
+                const card = CARDS[Math.floor(Math.random() * CARDS.length)];
+                if (enemyElixir >= card.cost) {
+                    enemyElixir -= card.cost;
+                    const lX = Math.random() > 0.5 ? 90 : 390;
+                    const mult = ARENAS[currentArena].enemyMult;
+                    units.push({...card, x: lX, y: 150, team: 1, currentHp: card.hp * mult, dmg: card.dmg * mult, speed: card.speed * (1 + mult/10), lastAttack: 0});
+                    lastAI = now;
+                }
+            }
+
+            // Movimiento y Combate
+            units.forEach(u => {
+                let targets = u.target === "building" ? towers.filter(t => t.team !== u.team && t.hp > 0) : 
+                              [...towers.filter(t => t.team !== u.team && t.hp > 0), ...units.filter(un => un.team !== u.team && un.currentHp > 0)];
+                
+                let closest = targets.reduce((prev, curr) => {
+                    const d = Math.hypot(curr.x - u.x, curr.y - u.y);
+                    return d < prev.d ? {t:curr, d:d} : prev;
+                }, {t:null, d:Infinity});
+
+                if (closest.t) {
+                    let destinoX = closest.t.x, destinoY = closest.t.y;
+                    const cruzandoRio = (u.team === 0 && u.y > H/2 && closest.t.y < H/2) || (u.team === 1 && u.y < H/2 && closest.t.y > H/2);
+                    
+                    if (cruzandoRio) {
+                        const puente = u.x < W/2 ? PUENTES[0] : PUENTES[1];
+                        destinoX = puente.x; destinoY = puente.y;
+                    }
+
+                    const distReal = Math.hypot(closest.t.x - u.x, closest.t.y - u.y);
+                    if (distReal > u.range) {
+                        const angle = Math.atan2(destinoY - u.y, destinoX - u.x);
+                        u.x += Math.cos(angle) * u.speed; u.y += Math.sin(angle) * u.speed;
+                    } else if (now - u.lastAttack > u.atkSpeed) {
+                        u.lastAttack = now;
+                        if (closest.t.currentHp !== undefined) closest.t.currentHp -= u.dmg; else closest.t.hp -= u.dmg;
+                    }
+                }
+            });
+
+            // Torres Atacando
+            towers.forEach(t => {
+                if (t.hp <= 0) return;
+                let target = units.find(u => u.team !== t.team && Math.hypot(u.x - t.x, u.y - t.y) < t.range);
+                if (target && now - t.lastAttack > t.atkSpeed) {
+                    t.lastAttack = now;
+                    projectiles.push({x: t.x, y: t.y, tx: target.x, ty: target.y, dmg: t.dmg, target});
+                }
+            });
+
+            projectiles.forEach((p, i) => {
+                const angle = Math.atan2(p.ty - p.y, p.tx - p.x);
+                p.x += Math.cos(angle) * 10; p.y += Math.sin(angle) * 10;
+                if (Math.hypot(p.tx - p.x, p.ty - p.y) < 10) {
+                    if (p.target.currentHp !== undefined) p.target.currentHp -= p.dmg;
+                    projectiles.splice(i, 1);
+                }
+            });
+
+            units = units.filter(u => u.currentHp > 0);
+            if (towers[2].hp <= 0) endGame(1);
+            if (towers[5].hp <= 0) endGame(0);
+        }
+
+        function endGame(winnerTeam) {
+            if (gameOver) return;
+            gameOver = true;
+            if (winnerTeam === 0) {
+                resultMsg = "¡VICTORIA! +30 COPAS";
+                playerData.trophies += 30;
+                // Actualizar arena
+                if (playerData.trophies >= 400) playerData.arenaIdx = 1;
+                if (playerData.trophies >= 800) playerData.arenaIdx = 2;
+                if (playerData.trophies >= 1200) playerData.arenaIdx = 3;
+            } else {
+                resultMsg = "DERROTA... -15 COPAS";
+                playerData.trophies = Math.max(0, playerData.trophies - 15);
+            }
+            localStorage.setItem('mashroyale_data', JSON.stringify(playerData));
+        }
+
+        function draw() {
+            ctx.fillStyle = ARENAS[currentArena].color; ctx.fillRect(0,0,W,H);
+            ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(0, H/2 - 20, W, 40); 
+            PUENTES.forEach(p => { ctx.fillStyle = "#795548"; ctx.fillRect(p.x-35, p.y-25, 70, 50); });
+
+            towers.forEach(t => {
+                if (t.hp <= 0) return;
+                ctx.fillStyle = t.team === 0 ? "#2980b9" : "#c0392b";
+                ctx.fillRect(t.x-22, t.y-22, 44, 44);
+                ctx.fillStyle = "white"; ctx.font = "20px Arial"; ctx.textAlign="center";
+                ctx.fillText(t.isKing?"👑":"🏰", t.x, t.y+7);
+                ctx.fillStyle = "lime"; ctx.fillRect(t.x-22, t.y-30, 44*(t.hp/t.max), 4);
+            });
+
+            units.forEach(u => {
+                ctx.fillStyle = "white"; ctx.font = "24px Arial"; ctx.fillText(u.emoji, u.x, u.y+8);
+                ctx.fillStyle = "red"; ctx.fillRect(u.x-15, u.y-20, 30, 4);
+                ctx.fillStyle = "lime"; ctx.fillRect(u.x-15, u.y-20, 30 * (u.currentHp/(u.hp * (u.team===0?cardLevel:1))), 4);
+            });
+
+            projectiles.forEach(p => { ctx.fillStyle = "yellow"; ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill(); });
+
+            // UI Cartas
+            ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0, H-160, W, 160);
+            playerHand.forEach((c, i) => {
+                const x = 20 + i * 110, y = H-140;
+                ctx.fillStyle = playerElixir >= c.cost ? "#3498db" : "#555";
+                ctx.beginPath(); ctx.roundRect(x, y, 95, 120, 10); ctx.fill();
+                if(selectedCard === i) { ctx.strokeStyle = "white"; ctx.lineWidth=3; ctx.stroke(); }
+                ctx.fillStyle = "white"; ctx.font = "40px Arial"; ctx.fillText(c.emoji, x+47, y+60);
+                ctx.fillStyle = "#e056fd"; ctx.beginPath(); ctx.arc(x+15, y+15, 12, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle="white"; ctx.font="14px Bangers"; ctx.fillText(c.cost, x+15, y+20);
+            });
+
+            // Barra Elixir
+            ctx.fillStyle="#333"; ctx.fillRect(20, H-20, W-40, 10);
+            ctx.fillStyle="#e056fd"; ctx.fillRect(20, H-20, (playerElixir/10)*(W-40), 10);
+
+            if (gameOver) {
+                ctx.fillStyle = "rgba(0,0,0,0.9)"; ctx.fillRect(0,0,W,H);
+                ctx.fillStyle = "#f1c40f"; ctx.font = "40px Bangers"; ctx.fillText(resultMsg, W/2, H/2 - 20);
+                ctx.fillStyle = "white"; ctx.font = "20px Arial"; ctx.fillText("Toca la pantalla para volver al menú", W/2, H/2 + 30);
+            }
+        }
+
+        canvas.addEventListener('click', e => {
+            if (gameOver) {
+                window.location.href = 'index.html'; // REGRESA AL MENÚ
+                return;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const mx = (e.clientX - rect.left) * (W/rect.width), my = (e.clientY - rect.top) * (H/rect.height);
+            if (my > H-160) {
+                const idx = Math.floor((mx-20)/110);
+                if (idx >= 0 && idx < 4) selectedCard = idx;
+            } else if (selectedCard !== -1 && my > H/2) {
+                const c = playerHand[selectedCard];
+                if (playerElixir >= c.cost) {
+                    playerElixir -= c.cost;
+                    units.push({...c, x:mx, y:my, team:0, currentHp: c.hp * cardLevel, dmg: c.dmg * cardLevel, speed: c.speed * (1 + cardLevel/15), lastAttack:0});
+                    
+                    // Rotar mazo
+                    let nextCard = deckQueue.shift();
+                    deckQueue.push(c);
+                    playerHand[selectedCard] = nextCard;
+                    selectedCard = -1;
+                }
+            }
+        });
+
+        function loop() { update(); draw(); requestAnimationFrame(loop); }
+        init(); loop();
+    </script>
+</body>
+</html>
