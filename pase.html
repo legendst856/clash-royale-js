@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pase - MashRoyale</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Open+Sans:wght@600;800&display=swap');
+        :root { --gold: #fbc531; --bg: #1e272e; --blue: #0097e6; }
+        body { margin: 0; background: #000; font-family: 'Open Sans', sans-serif; color: white; display: flex; justify-content: center; }
+        #app-container { width: 100%; max-width: 480px; height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
+        header { padding: 15px; text-align: center; background: rgba(0,0,0,0.3); border-bottom: 2px solid #333; }
+        header h1 { font-family: 'Bangers'; color: var(--gold); margin: 0; font-size: 38px; }
+        #main-content { flex: 1; padding: 20px; overflow-y: auto; }
+        
+        .reward-tier { background: #2f3640; border-radius: 10px; padding: 15px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; border: 2px solid #444;}
+        .reward-tier.unlocked { border-color: var(--gold); background: rgba(251, 197, 49, 0.1); }
+        
+        nav { height: 80px; background: #2f3640; display: flex; border-top: 3px solid #111; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; color: #718093; font-weight: 800; font-size: 14px; }
+        .nav-item.active { color: var(--gold); background: rgba(255,255,255,0.05); }
+    </style>
+</head>
+<body>
+<div id="app-container">
+    <header><h1>MASHROYALE</h1></header>
+    <div id="main-content">
+        <h2 style="font-family:'Bangers'; text-align:center; color: var(--blue); font-size: 30px;">CAMINO DE TROFEOS</h2>
+        <p style="text-align:center; color: var(--gold);">🏆 Tienes: <span id="current-trophies"></span> Copas</p>
+        <div id="pass-content"></div>
+    </div>
+    <nav>
+        <a href="mazos.html" class="nav-item"><span>🃏</span>MAZOS</a>
+        <a href="index.html" class="nav-item"><span>⚔️</span>INICIO</a>
+        <a href="pase.html" class="nav-item active"><span>🏆</span>PASE</a>
+    </nav>
+</div>
+<script>
+    let pData = JSON.parse(localStorage.getItem('mashroyale_data')) || { trophies: 0 };
+    document.getElementById('current-trophies').innerText = pData.trophies;
+
+    const TIERS = [
+        { req: 0, reward: "Nivel 1 de Cartas" },
+        { req: 100, reward: "Recompensa de Oro" },
+        { req: 400, reward: "Arena Foso de Huesos" },
+        { req: 800, reward: "Arena Coliseo Bárbaro" },
+        { req: 1200, reward: "Arena Legendaria" }
+    ];
+
+    const passDiv = document.getElementById('pass-content');
+    passDiv.innerHTML = TIERS.map(t => {
+        const isUnlocked = pData.trophies >= t.req;
+        return `
+            <div class="reward-tier ${isUnlocked ? 'unlocked' : ''}">
+                <div>
+                    <div style="font-size: 12px; color: #aaa;">🏆 ${t.req} Copas</div>
+                    <div style="font-weight: bold;">${t.reward}</div>
+                </div>
+                <div style="font-size: 24px;">${isUnlocked ? '✅' : '🔒'}</div>
+            </div>
+        `;
+    }).join('');
+</script>
+</body>
+</html>
