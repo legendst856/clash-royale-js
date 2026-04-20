@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MASHROYALE - Login</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-screen">
+    <div class="login-box">
+        <h1 class="logo-text">MASHROYALE</h1>
+        <p>Edición: Server Lozano</p>
+        <input type="text" id="username" placeholder="Nombre de Guerrero..." class="input-style">
+        <button onclick="login()" class="btn-main">¡ENTRAR A LA ARENA!</button>
+    </div>
+    <script>
+        function login() {
+            const user = document.getElementById('username').value;
+            if(user) {
+                localStorage.setItem('usuario', user);
+                window.location.href = 'home.html';
+            } else { alert("¡Identifícate, Guerrero!"); }
+        }
+    </script>
+</body>
+</html>
